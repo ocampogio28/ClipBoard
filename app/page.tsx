@@ -63,6 +63,33 @@ export default function VirtualClipboardPage() {
     set(STORAGE_KEY, newItems);
   };
 
+  // Create new empty note at click position
+  const handleCanvasDoubleClick = (e: React.MouseEvent) => {
+    // Prevent triggered actions if double-clicking an existing item or header
+    if (editingId) return;
+
+    maxZIndex.current += 1;
+
+    const newNote: ClipboardItemData = {
+      id: crypto.randomUUID(),
+      type: "text",
+      content: "",
+      x: e.clientX - 140, // center horizontally on cursor (assuming width 280)
+      y: e.clientY - 40, // offset slightly vertically relative to cursor
+      width: 280,
+      height: 200,
+      zIndex: maxZIndex.current,
+      createdAt: Date.now(),
+    };
+
+    const updated = [newNote, ...items];
+    saveItems(updated);
+
+    // Immediately put the newly created note in edit mode
+    setEditingId(newNote.id);
+    setTimeout(() => editTextRef.current?.focus(), 0);
+  };
+
   // 2. Global Paste Handler
   useEffect(() => {
     if (!isMounted) return;
@@ -214,7 +241,7 @@ export default function VirtualClipboardPage() {
 
   // 5. Editing Text
   const handleDoubleClickText = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevents canvas double click from triggering
     setEditingId(id);
     setTimeout(() => editTextRef.current?.focus(), 0);
   };
@@ -222,6 +249,14 @@ export default function VirtualClipboardPage() {
   const handleFinishEdit = (id: string) => {
     if (!editingId) return;
     const newContent = editTextRef.current?.value || "";
+
+    // If an empty card was edited and left empty, clean it up
+    if (!newContent.trim()) {
+      saveItems(items.filter((item) => item.id !== id));
+      setEditingId(null);
+      return;
+    }
+
     const updated = items.map((item) =>
       item.id === id ? { ...item, content: newContent } : item,
     );
@@ -294,7 +329,7 @@ export default function VirtualClipboardPage() {
             <p className="text-xs text-neutral-500">
               Paste (
               <kbd className="px-1 border rounded bg-neutral-100">Ctrl+V</kbd>),
-              Click image to preview/copy, Dbl-click text to edit.
+              Dbl-click empty space to create, Click image to preview/copy.
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -319,10 +354,14 @@ export default function VirtualClipboardPage() {
       </header>
 
       {/* Main Canvas Area */}
-      <main className="w-full min-h-screen relative pt-20">
+      <main
+        className="w-full min-h-screen relative pt-20"
+        onDoubleClick={handleCanvasDoubleClick}
+      >
         {items.length === 0 ? (
           <div className="fixed inset-0 flex items-center justify-center text-neutral-400 text-sm pt-20 pointer-events-none">
-            Board empty. Paste text or images anywhere.
+            Board empty. Double-click anywhere to create a note or paste
+            content.
           </div>
         ) : (
           items.map((item) => {
@@ -336,7 +375,7 @@ export default function VirtualClipboardPage() {
                 onDoubleClick={
                   item.type === "text"
                     ? (e) => handleDoubleClickText(item.id, e)
-                    : undefined
+                    : (e) => e.stopPropagation()
                 }
                 style={{
                   left: `${item.x}px`,
@@ -393,6 +432,7 @@ export default function VirtualClipboardPage() {
                         defaultValue={item.content}
                         onBlur={() => handleFinishEdit(item.id)}
                         className="w-full h-full font-mono text-xs p-1 border border-dashed border-neutral-300 outline-none resize-none bg-neutral-50"
+                        placeholder="Type something..."
                       />
                     ) : (
                       <p className="font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-neutral-800 select-text">
