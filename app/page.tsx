@@ -49,7 +49,10 @@ export default function VirtualClipboardPage() {
     get<ClipboardItemData[]>(STORAGE_KEY).then((saved) => {
       if (saved && Array.isArray(saved)) {
         setItems(saved);
-        const highestZ = saved.reduce((max, i) => Math.max(max, i.zIndex || 1), 1);
+        const highestZ = saved.reduce(
+          (max, i) => Math.max(max, i.zIndex || 1),
+          1,
+        );
         maxZIndex.current = highestZ;
       }
     });
@@ -141,7 +144,7 @@ export default function VirtualClipboardPage() {
 
     maxZIndex.current += 1;
     const updated = items.map((item) =>
-      item.id === id ? { ...item, zIndex: maxZIndex.current } : item
+      item.id === id ? { ...item, zIndex: maxZIndex.current } : item,
     );
     const target = updated.find((i) => i.id === id);
     if (target) {
@@ -170,11 +173,11 @@ export default function VirtualClipboardPage() {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (draggingId) {
       const newX = Math.max(10, e.clientX - dragOffset.current.x);
-      const newY = Math.max(70, e.clientY - dragOffset.current.y);
+      const newY = Math.max(100, e.clientY - dragOffset.current.y);
       setItems((prev) =>
         prev.map((item) =>
-          item.id === draggingId ? { ...item, x: newX, y: newY } : item
-        )
+          item.id === draggingId ? { ...item, x: newX, y: newY } : item,
+        ),
       );
     }
 
@@ -184,19 +187,19 @@ export default function VirtualClipboardPage() {
 
       const newWidth = Math.min(
         MAX_WIDTH,
-        Math.max(MIN_WIDTH, resizeStartDim.current.w + deltaX)
+        Math.max(MIN_WIDTH, resizeStartDim.current.w + deltaX),
       );
       const newHeight = Math.min(
         MAX_HEIGHT,
-        Math.max(MIN_HEIGHT, resizeStartDim.current.h + deltaY)
+        Math.max(MIN_HEIGHT, resizeStartDim.current.h + deltaY),
       );
 
       setItems((prev) =>
         prev.map((item) =>
           item.id === resizingId
             ? { ...item, width: newWidth, height: newHeight }
-            : item
-        )
+            : item,
+        ),
       );
     }
   };
@@ -220,14 +223,17 @@ export default function VirtualClipboardPage() {
     if (!editingId) return;
     const newContent = editTextRef.current?.value || "";
     const updated = items.map((item) =>
-      item.id === id ? { ...item, content: newContent } : item
+      item.id === id ? { ...item, content: newContent } : item,
     );
     setEditingId(null);
     saveItems(updated);
   };
 
   // 6. Copy Back to Clipboard Utility
-  const copyImageToClipboard = async (dataUrl: string, e?: React.MouseEvent) => {
+  const copyImageToClipboard = async (
+    dataUrl: string,
+    e?: React.MouseEvent,
+  ) => {
     if (e) e.stopPropagation();
     try {
       const res = await fetch(dataUrl);
@@ -257,7 +263,11 @@ export default function VirtualClipboardPage() {
   const clearBoard = () => saveItems([]);
 
   if (!isMounted) {
-    return <div className="min-h-screen bg-white text-black p-6">Loading board...</div>;
+    return (
+      <div className="min-h-screen bg-white text-black p-6">
+        Loading board...
+      </div>
+    );
   }
 
   return (
@@ -266,36 +276,52 @@ export default function VirtualClipboardPage() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      {/* Fixed Top Controls */}
-      <header className="fixed top-0 left-0 right-0 h-14 border-b border-black/10 bg-white/80 backdrop-blur z-[99999] px-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">Virtual Clipboard</h1>
-          <p className="text-xs text-neutral-500">
-            Paste (<kbd className="px-1 border rounded bg-neutral-100">Ctrl+V</kbd>), Click image to preview/copy, Dbl-click text to edit.
-          </p>
+      {/* Fixed Top Controls with Storage Warning */}
+      <header className="fixed top-0 left-0 right-0 border-b border-black/10 bg-white/80 backdrop-blur z-[99999]">
+        {/* No-DB / Local-Only Notice Banner */}
+        <div className="bg-amber-50 text-amber-900 border-b border-amber-200 px-6 py-1 text-center text-xs font-mono flex items-center justify-center gap-2">
+          <span>
+            ⚠️ <strong>No database connection.</strong> Data is stored locally
+            in IndexedDB and will be cleared if browser storage/cache is wiped.
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          {copySuccess && (
-            <span className="text-xs bg-black text-white px-2 py-0.5 font-mono">
-              Copied to clipboard!
+
+        <div className="h-14 px-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold tracking-tight">
+              Virtual Clipboard
+            </h1>
+            <p className="text-xs text-neutral-500">
+              Paste (
+              <kbd className="px-1 border rounded bg-neutral-100">Ctrl+V</kbd>),
+              Click image to preview/copy, Dbl-click text to edit.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {copySuccess && (
+              <span className="text-xs bg-black text-white px-2 py-0.5 font-mono">
+                Copied to clipboard!
+              </span>
+            )}
+            <span className="text-xs text-neutral-400">
+              {items.length} items
             </span>
-          )}
-          <span className="text-xs text-neutral-400">{items.length} items</span>
-          {items.length > 0 && (
-            <button
-              onClick={clearBoard}
-              className="text-xs px-2.5 py-1 border border-black hover:bg-black hover:text-white transition-colors"
-            >
-              Clear All
-            </button>
-          )}
+            {items.length > 0 && (
+              <button
+                onClick={clearBoard}
+                className="text-xs px-2.5 py-1 border border-black hover:bg-black hover:text-white transition-colors"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Canvas Area */}
-      <main className="w-full min-h-screen relative pt-14">
+      <main className="w-full min-h-screen relative pt-20">
         {items.length === 0 ? (
-          <div className="fixed inset-0 flex items-center justify-center text-neutral-400 text-sm pt-14 pointer-events-none">
+          <div className="fixed inset-0 flex items-center justify-center text-neutral-400 text-sm pt-20 pointer-events-none">
             Board empty. Paste text or images anywhere.
           </div>
         ) : (
